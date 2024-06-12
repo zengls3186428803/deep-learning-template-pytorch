@@ -15,6 +15,7 @@ import time
 from utils.seed_all import seed_everything
 
 
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig):
     # =========================translate DictConfig to class-Config=====================
@@ -59,7 +60,7 @@ def main(cfg: DictConfig):
     )
 
     # train_config.device = "cpu"
-    # ================================trainer==========================================
+    # ===============================trainer==========================================
     trainer = CovTrainer(
         model=model,
         dataloaders=(train_loader, train_eval_loader, test_loader),

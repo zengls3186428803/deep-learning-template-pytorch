@@ -1,15 +1,16 @@
-from neuralNetwork import ImageClassificationModel
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from get_dataloaders import get_fashion_mnist_loaders, get_mnist_loaders
-from trainer import Trainer, TrainConfig
-from config_class.algorithmConfig import AlgorithmConfig
-from config_class.dataConfig import DataConfig
-from config_class.wandbConfig import WandbConfig
-from config_class.modelConfig import ModelConfig
+from class_train.gcmTrainer import CovTrainer
+from class_config.algorithmConfig import AlgorithmConfig
+from class_config.dataConfig import DataConfig
+from class_config.wandbConfig import WandbConfig
+from class_config.modelConfig import ModelConfig
+from class_config.trainConfig import TrainConfig
 import wandb
 import time
-from utils.seed_all import seed_everything
+from my_utils.seed_all import seed_everything
+from class_model.dnnODEModel import DNNClassificationODEModel
+from get_dataloader.Iris import get_Iris_dataloader
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -25,13 +26,23 @@ def main(cfg: DictConfig):
     seed_everything(train_config.seed)
 
     # ===============prepare model and data===============================================
-    model = ImageClassificationModel(in_features=28 * 28, out_features=10, T=model_config.T)
-    train_loader, train_eval_loader, test_loader = get_fashion_mnist_loaders(
-        data_aug=False,
+    # model = ImageClassificationModel(in_features=28 * 28, out_features=10, T=model_config.T)
+    # train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_fashion_mnist_loaders_5(
+    #     data_aug=False,
+    #     batch_size=data_config.batch_size,
+    #     test_batch_size=data_config.test_batch_size
+    # )
+    # model = AvilaClassificationModel(T=model_config.T)
+    # train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_avila_loaders_5(
+    #     batch_size=data_config.batch_size,
+    #     test_batch_size=data_config.test_batch_size
+    # )
+
+    model = DNNClassificationODEModel(in_features=4, ode_features=10, out_features=3, T=model_config.T)
+    train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_Iris_dataloader(
         batch_size=data_config.batch_size,
         test_batch_size=data_config.test_batch_size
     )
-
     # =======================wandb config=======================================
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     wandb_config = WandbConfig(cfg)
@@ -50,12 +61,16 @@ def main(cfg: DictConfig):
         reinit=True,
     )
 
+    # train_config.device = "cpu"
     # ================================trainer==========================================
-    trainer = Trainer(
+    trainer = CovTrainer(
         model=model,
         dataloaders=(train_loader, train_eval_loader, test_loader),
         config=train_config,
         algorithm_config=algorithm_config,
+        data_config=data_config,
+        dataloader_one=dataloader_one,
+        dataloader_full=dataloader_full
     )
     trainer.train()
 

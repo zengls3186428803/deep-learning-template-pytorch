@@ -1,6 +1,6 @@
 # deep-learning-template-pytorch
 
-## preparation
+## description for packages and software
 
 * python
     * hydra for configuration and multirun
@@ -12,7 +12,7 @@
     * slurm for High-performance computing
     * singularity for container
 
-## description
+## description for files and directories
 
 **singularity.sh** for start a container
 
@@ -21,3 +21,11 @@
 **class_*** is python class for *
 
 **conf** contains configuration yaml for hydra
+
+**get_dataloader** contains function of get dataloader
+
+## run
+
+```
+python main.py
+```

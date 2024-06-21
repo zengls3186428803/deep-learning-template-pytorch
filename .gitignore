@@ -5,4 +5,5 @@ __pycache__/
 hydra_outputs/
 multirun/
 wandb/
-torchdiffeq
+torchdiffeq/
+model_pretrained/

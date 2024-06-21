@@ -97,6 +97,7 @@ if __name__ == "__main__":
     #     trust_remote_code=True,
     # )
     # dataset.save_to_disk("data/" + repo_path + "/" + subset_name)
+
     tokenizer = GPT2Tokenizer()
     tokenizer.build_vocab([data["text"] for data in [{"text": "我真今天啊啊啊777起其1的爱你YYYs啊"}]])
     ids = tokenizer.tokenize(["今天天机七七i七七i其"])

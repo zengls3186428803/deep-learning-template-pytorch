@@ -4,4 +4,4 @@ save_interval: 20
 evaluate_interval_steps: 40
 evaluate_interval_epochs: 1
 seed: 415
-calculate_eigenvalue_at_step: 2000
+calculate_eigenvalue_at_step: 999999999

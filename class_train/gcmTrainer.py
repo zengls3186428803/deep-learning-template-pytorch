@@ -64,7 +64,7 @@ class CovTrainer(Trainer):
             )
             result.update(result_eval)
             flag = f"evaluate per {self.config.evaluate_interval_steps} step : "
-            result[flag] = self.step
+            result[flag + "step"] = self.step
             flag = f"calculate per {self.config.evaluate_interval_steps} step : "
             result[flag + "trace"] = self.get_trace_of_gcm(self.model, self.dataloader_one)
         if self.step == self.config.calculate_eigenvalue_at_step:
@@ -163,7 +163,7 @@ class CovTrainer(Trainer):
 
     def register_hook_for_gcm_trace(self):
         with torch.no_grad():
-            for name, p in tqdm(self.model.named_parameters(), desc="register hook for gcm trace"):
+            for name, p in self.model.named_parameters():
                 if p.requires_grad:
                     self.cache[name] = dict()
                     self.cache[name]["grad"] = torch.zeros_like(p)
@@ -171,7 +171,7 @@ class CovTrainer(Trainer):
 
     def remove_hook_for_gcm_trace(self):
         with torch.no_grad():
-            for name, p in tqdm(self.model.named_parameters(), desc="remove hook for gcm trace"):
+            for name, p in self.model.named_parameters():
                 if p.requires_grad and isinstance(self.cache[name]["handle"], RemovableHandle):
                     self.cache[name]["handle"].remove()
 

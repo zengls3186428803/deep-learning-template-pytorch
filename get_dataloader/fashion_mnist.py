@@ -3,16 +3,10 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
 
-def get_fashion_mnist_loaders_5(data_aug=False, batch_size=128, test_batch_size=1000):
-    if data_aug:
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(28, padding=4),
-            transforms.ToTensor(),
-        ])
-    else:
-        transform_train = transforms.Compose([
-            transforms.ToTensor(),
-        ])
+def get_fashion_mnist_loaders_5(batch_size=128, test_batch_size=1000):
+    transform_train = transforms.Compose([
+        transforms.ToTensor(),
+    ])
 
     transform_test = transforms.Compose([
         transforms.ToTensor(),

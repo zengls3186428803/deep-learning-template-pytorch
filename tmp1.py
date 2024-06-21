@@ -1,5 +1,6 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from get_dataloaders import (get_fashion_mnist_loaders_5)
 from class_train.gcmTrainer import CovTrainer
 from class_config.algorithmConfig import AlgorithmConfig
 from class_config.dataConfig import DataConfig
@@ -9,8 +10,7 @@ from class_config.trainConfig import TrainConfig
 import wandb
 import time
 from my_utils.seed_all import seed_everything
-from class_model.dnnODEModel import DNNClassificationODEModel
-from get_dataloader.Iris import get_Iris_dataloader
+from class_model.imageClassificationODEModel import ImageClassificationModel
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -26,11 +26,18 @@ def main(cfg: DictConfig):
     seed_everything(train_config.seed)
 
     # ===============prepare model and data===============================================
-    model = DNNClassificationODEModel(in_features=4, ode_features=10, out_features=3, T=model_config.T)
-    train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_Iris_dataloader(
+    model = ImageClassificationModel(in_features=28 * 28, out_features=10, T=model_config.T)
+    train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_fashion_mnist_loaders_5(
+        data_aug=False,
         batch_size=data_config.batch_size,
         test_batch_size=data_config.test_batch_size
     )
+    # model = AvilaClassificationModel(T=model_config.T)
+    # train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_avila_loaders_5(
+    #     batch_size=data_config.batch_size,
+    #     test_batch_size=data_config.test_batch_size
+    # )
+
     # =======================wandb config=======================================
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     wandb_config = WandbConfig(cfg)

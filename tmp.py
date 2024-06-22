@@ -1,110 +1,118 @@
-import copy
 import os
-import collections
-from typing import Iterable, List
-from tqdm import tqdm
+import time
 
-# os.environ["http_proxy"] = "http://127.0.0.1:10808"
-# os.environ["https_proxy"] = "http://127.0.0.1:10808"
+import hydra
+import torch
+import wandb
+from torch.nn.utils.rnn import pad_sequence
+from get_dataloader.douban import get_douban_dataloader
+from class_model.gpt2Tokenizer import GPT2Tokenizer
+from class_model.gpt2 import GPT2
+from class_train.gptTrainer import GPTTrainer
+from class_config.trainConfig import TrainConfig
+from class_config.algorithmConfig import AlgorithmConfig
+from class_config.dataConfig import DataConfig
+from class_config.wandbConfig import WandbConfig
+from my_utils.seed_all import seed_everything
+from omegaconf import DictConfig, OmegaConf
+
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
-from datasets import load_dataset, DownloadConfig
+
+class GPT2Config:
+    EMBED_DIM = 10
+    N_HEAD = 1
+    DROPOUT = 0.1
+    N_BLOCK_GPT = 1
+    BATCH_FIRST = True
+    BATCH_SIZE = 64
+    MAX_GEN_LEN = 128
+    MAX_POS = 5000
 
 
-class GPT2Tokenizer:
-    def __init__(self):
-        self.special_vocab = None
-        self.inv_vocab = None
-        self.vocab = None
-        self.has_add_special_tokens = False
-        self.has_build_vocab = False
-        self.default_special_token_list = ["[BOS]", "[EOS]", "[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"]
-        self.eos_token = None
-        self.set_eos_token("[EOS]")
-
-    def set_eos_token(self, val: str = "[EOS]"):
-        self.eos_token = val
-
-    def tokenize(self, text_list: List[str], with_eos=True):
-        assert self.has_build_vocab, "haven't build vocab, please call <build_vocab> method fist! "
-        ids_list = list()
-        for text in text_list:
-            tmp_list = list()
-            for word in text:
-                tmp_list.append(
-                    self.vocab.get(word, self.vocab.get("UNK", 0))
-                )
-            ids_list.append(tmp_list)
-        return ids_list
-
-    def build_vocab(self, text_list: list, max_vocab_size=10000, min_freq=1):
-        counter = collections.Counter()
-        p_bar = tqdm(total=len(text_list), desc="counting token in texts")
-        for text in text_list:
-            tokens = list(text)
-            counter.update(tokens)
-            p_bar.update(1)
-
-        if not self.has_add_special_tokens:
-            self.add_special_tokens(self.default_special_token_list)
-        vocab = copy.deepcopy(self.special_vocab)
-        p_bar = tqdm(total=max(counter.total(), max_vocab_size), desc="specifying id to tokens")
-        for token, freq in counter.most_common(max_vocab_size):
-            if freq >= min_freq and token not in vocab:
-                vocab[token] = len(vocab)
-            p_bar.update(1)
-
-        self.vocab = vocab
-        self.inv_vocab = {v: k for k, v in self.vocab.items()}
-        self.has_build_vocab = True
-
-    def add_special_tokens(self, special_token_list: List[str]):
-        self.special_vocab = {special_token_list[i]: i for i in range(len(special_token_list))}
-        self.has_add_special_tokens = True
-
-    def save_state_dict(self, save_directory="model_pretrained/gpt2"):
-        import json
-        state_dict = self.__dict__
-        state_dict["vocab"] = self.vocab
-        with open(f"{save_directory}/vocab.json", "w") as f:
-            json.dump(self.__dict__, f)
-
-    def load_state_dict(self, save_directory="model_pretrained/gpt2"):
-        import json
-        with open(f"{save_directory}/vocab.json", "r") as f:
-            state_dict = json.load(f)
-            self.__dict__ = state_dict
-
-    def ids_to_tensor(self, ids_list: List[List[int]]):
-        for ids in ids_list:
-            pass
+def data_generator(dataloader):
+    for batch in dataloader:
+        for data in batch:
+            yield data
 
 
+def transform_text_to_tensor(text: str, tokenizer: GPT2Tokenizer):
+    return torch.Tensor(
+        tokenizer.convert_token_to_id(
+            tokenizer.tokenize(text) + [tokenizer.eos_token]
+        )
+    )
 
 
-if __name__ == "__main__":
-    # repo_path = "liwu/MNBVC"
-    # subset_name = 'law_judgement'
-    # split = "train"
-    # dataset = load_dataset(
-    #     path=repo_path,
-    #     name='law_judgement',
-    #     split='train',
-    #     streaming=True,
-    #     download_config=DownloadConfig(
-    #         cache_dir="data/.huggingface" + "/" + repo_path,
-    #     ),
-    #     trust_remote_code=True,
-    # )
-    # dataset.save_to_disk("data/" + repo_path + "/" + subset_name)
+def get_collate_fn(tokenizer: GPT2Tokenizer):
+    def collate_fn(batch):
+        collated_batch = []
+        for sample in batch:
+            collated_batch.append(transform_text_to_tensor(sample.rstrip("\n"), tokenizer))
+        collated_batch = pad_sequence(
+            collated_batch,
+            padding_value=tokenizer.convert_token_to_id([tokenizer.pad_token])[0],
+            batch_first=True
+        )
+        return collated_batch.long()
 
-    tokenizer = GPT2Tokenizer()
-    tokenizer.build_vocab([data["text"] for data in [{"text": "我真今天啊啊啊777起其1的爱你YYYs啊"}]])
-    ids = tokenizer.tokenize(["今天天机七七i七七i其"])
-    print(tokenizer.vocab)
-    print(ids)
-    print(tokenizer.__dict__)
-    tokenizer.save_state_dict()
-    tokenizer = GPT2Tokenizer()
-    tokenizer.load_state_dict()
-    print(tokenizer.vocab)
+    return collate_fn
+
+
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(cfg: DictConfig):
+    print(OmegaConf.to_yaml(cfg))
+    train_config = TrainConfig(cfg)
+    algorithm_config = AlgorithmConfig(cfg)
+    data_config = DataConfig(cfg)
+    seed_everything(train_config.seed)
+    wandb_config = WandbConfig(cfg)
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    wandb.init(
+        project=wandb_config.project,
+        group=wandb_config.group,
+        entity=wandb_config.entity,
+        name=timestamp,
+        config=dict(
+            num_epochs=train_config.num_epochs,
+            learning_rate=algorithm_config,
+            optimizer=algorithm_config.optimizer_name,
+        ),
+        mode=wandb_config.mode,
+        reinit=True,
+    )
+
+    train_loader, eval_loader, test_loader, dataloader_one = get_douban_dataloader(
+        data_config.batch_size,
+        data_config.test_batch_size
+    )
+    gpt2tokenizer = GPT2Tokenizer()
+    # gpt2tokenizer.build_vocab([text for text in data_generator(train_loader)])
+    # gpt2tokenizer.save_state_dict()
+    gpt2tokenizer.load_state_dict()
+    print(gpt2tokenizer.get_vocab_size())
+    gpt2config = GPT2Config()
+    gpt = GPT2(
+        vocab_size=gpt2tokenizer.get_vocab_size(),
+        embed_dim=gpt2config.EMBED_DIM,
+        num_head=gpt2config.N_HEAD,
+        num_block_gpt=gpt2config.N_BLOCK_GPT,
+        max_pos=gpt2config.MAX_POS,
+        batch_first=gpt2config.BATCH_FIRST,
+        dropout=gpt2config.DROPOUT
+    )
+
+    trainer = GPTTrainer(
+        model=gpt,
+        dataloaders=(train_loader, eval_loader, test_loader),
+        config=train_config,
+        algorithm_config=algorithm_config,
+        data_config=data_config,
+        collate_fn=get_collate_fn(gpt2tokenizer),
+        tokenizer=gpt2tokenizer
+    )
+    trainer.train()
+
+
+if __name__ == '__main__':
+    main()

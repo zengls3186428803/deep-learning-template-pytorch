@@ -1,0 +1,29 @@
+defaults:
+  - /model: general
+  - /data: general
+  - /algorithm: general
+  - /train: general
+  - /wandb: general
+  - _self_
+
+data:
+  batch_size: 32
+  test_batch_size: 32
+
+algorithm:
+  learning_rate: 0.1
+
+wandb:
+  project: gpt2
+  entity: superposed-tree
+  mode: offline
+  group: gpt2_group
+
+train:
+  num_epochs: 100
+  #  snapshot_path: snapshot/snapshot.pth
+  save_interval: 5
+  evaluate_interval_steps: 99999
+  evaluate_interval_epochs: 1
+  seed: 415
+  calculate_eigenvalue_at_step: 3500

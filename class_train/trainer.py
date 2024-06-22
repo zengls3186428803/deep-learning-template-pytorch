@@ -149,7 +149,6 @@ class Trainer:
                 logits = self.model(x)
                 loss = self.loss_fn(logits, y)
                 accurate, correct, batch_size = self.compute_accurate(logits, y)
-                # print(flag + ":" + "step_loss" + f"loss={loss.item()},acc={accurate},correct/batch_size={int(correct)}/{batch_size}")
                 all_total += batch_size
                 correct_total += correct
                 loss_total += loss.item()

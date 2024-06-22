@@ -1,5 +1,6 @@
 defaults:
-  - suite/suite1@_here_
+  #  - suite/suite1@_here_
+  - suite/GPT2@_here_
   - _self_
 
 hydra:

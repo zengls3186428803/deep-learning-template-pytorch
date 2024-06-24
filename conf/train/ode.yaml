@@ -1,7 +1,8 @@
 num_epochs: 5
 #  snapshot_path: snapshot/snapshot.pth
-save_interval_steps: 20
+save_interval: 20
 evaluate_interval_steps: 40
 evaluate_interval_epochs: 1
 seed: 415
+calculate_eigenvalue_at_step: 999999999
 device: "cuda"

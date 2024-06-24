@@ -4,9 +4,9 @@ import accelerate
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from my_utils.dispatch import get_dispatch_model
 from accelerate import Accelerator
-
+from accelerate.hooks import (attach_execution_device_hook, attach_align_device_hook, remove_hook_from_submodules)
+from peft import prepare_model_for_kbit_training
 os.environ["HYDRA_FULL_ERROR"] = "1"
 
 
@@ -39,7 +39,33 @@ def offload_model_to_cpu(model: torch.nn.Module, device_map):
     print(f"Offloaded modules to CPU: {offloaded_modules}")
 
 
-from accelerate.hooks import (attach_execution_device_hook, attach_align_device_hook, remove_hook_from_submodules)
+def get_dispatch_model(model: torch.nn.Module, strategy="auto", device_map=None, max_memory=None, offload_dir=None,
+                       state_dict=None):
+    import accelerate
+    from accelerate.big_modeling import dispatch_model, load_checkpoint_and_dispatch
+    from accelerate.big_modeling import cpu_offload
+    match strategy:
+        case "only_cpu":
+            model = cpu_offload(model)
+        case "auto":
+            device_map = accelerate.infer_auto_device_map(
+                model,
+                max_memory=max_memory,
+            )
+            print("auto device map is ", device_map)
+            # model = load_checkpoint_and_dispatch(model)
+            model = dispatch_model(
+                model,
+                device_map=device_map,
+                offload_dir=offload_dir,
+                state_dict=state_dict,
+            )
+        case "device_map":
+            assert device_map is not None, "device map is None"
+            model = dispatch_model(model, device_map=device_map)
+        case _:
+            print("No offload policy is specified, so do nothing")
+    return model
 
 
 def main(cfg: DictConfig = None):
@@ -48,14 +74,10 @@ def main(cfg: DictConfig = None):
     # =========================translate DictConfig to class-Config=====================
     device = "cuda"
     model = M().cpu()
-    # attach_align_device_hook(model, offload=True, execution_device=device)
-    print([{name: parameter} for name, parameter in model.named_parameters()])
-    model = get_dispatch_model(model)
+
     print("after")
-    print([{name: parameter} for name, parameter in model.named_parameters()])
-    accelerator = Accelerator()
+
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-    # (model, optimizer) = accelerator.prepare([model, optimizer])
     x = torch.randn(1, 1024, requires_grad=True, device=device)
     y = torch.randn(1, 1024, requires_grad=True, device=device)
     loss_fn = torch.nn.MSELoss()

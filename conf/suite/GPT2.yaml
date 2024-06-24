@@ -1,8 +1,8 @@
 defaults:
-  - /model: general
+  - /model: gpt2
   - /data: general
   - /algorithm: general
-  - /train: general
+  - /train: gpt2
   - /wandb: general
   - _self_
 
@@ -11,7 +11,7 @@ data:
   test_batch_size: 32
 
 algorithm:
-  learning_rate: 0.1
+  learning_rate: 0.01
 
 wandb:
   project: gpt2
@@ -22,8 +22,9 @@ wandb:
 train:
   num_epochs: 100
   #  snapshot_path: snapshot/snapshot.pth
-  save_interval: 5
+  save_interval_epochs: 5
+  save_interval_steps: 1000
   evaluate_interval_steps: 99999
   evaluate_interval_epochs: 1
   seed: 415
-  calculate_eigenvalue_at_step: 3500
+  device: "cuda"

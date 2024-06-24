@@ -123,16 +123,17 @@ class GPT2(torch.nn.Module):
         self.wte = torch.nn.Embedding(vocab_size, embed_dim)
         self.pte = PositionalEmbedding(embed_dim=embed_dim, max_seq_len=max_pos)
         self.dropout = torch.nn.Dropout(p=dropout)
-        self.gpt_blocks = [
+        self.gpt_blocks = torch.nn.ModuleList([
             GPT2TransformerBlock(
                 embed_dim=embed_dim, num_head=num_head, dropout=dropout, batch_first=batch_first
             )
             for i in range(num_block_gpt)
-        ]
+        ])
         self.ln = NormLayer(embed_dim)
         self.linear = torch.nn.Linear(embed_dim, vocab_size)
 
-    def forward(self, x, tgt_mask, tgt_key_padding_mask):
+    def forward(self, x: torch.Tensor, tgt_mask, tgt_key_padding_mask):
+        # print("GPT forward x.device", x.device)
         x = self.wte(x)
         x = self.pte(x)
         x = self.dropout(x)

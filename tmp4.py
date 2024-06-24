@@ -46,19 +46,18 @@ if __name__ == "__main__":
     model = M().cpu()
     model.fc1.to("cuda")
     model.fc255.to("cpu")
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
     device = "cuda"
-
+    print("====pre-offload======================")
     for name, param in model.named_parameters():
         print(f"{name}: {param.device}")
     # attach_execution_device_hook(model, execution_device=device)
-    print("====================================")
-    for n, p in model.named_parameters():
-        if p.requires_grad:
-            p.register_hook(get_hook(n))
-    attach_align_device_hook(model, execution_device=device, offload=True)
-    model.train()
+    print("===register-hook=====================")
+    # for n, p in model.named_parameters():
+    #     if p.requires_grad:
+    #         p.register_hook(get_hook(n))
+    # attach_align_device_hook(model, execution_device=device, offload=True)
     print("-------------------------------")
+    model.train()
     # 打印每个模块的设备信息以确认是否成功 offload
     for name, param in model.named_parameters():
         print(f"{name}: {param.device}")
@@ -66,22 +65,22 @@ if __name__ == "__main__":
     # 使用 Accelerate 加速器准备模型
     accelerator = Accelerator()
     model, optimizer = accelerator.prepare([model, optimizer])
-
+    x = torch.randn(1, 1024, requires_grad=True, device=device)
+    y = torch.randn(1, 1024, requires_grad=True, device=device)
     for i in range(10):
-        x = torch.randn(1, 1024, requires_grad=True, device=device)
-        y = torch.randn(1, 1024, requires_grad=True, device=device)
+        optimizer: torch.optim.Optimizer
+        optimizer.zero_grad()
         loss_fn = torch.nn.MSELoss()
-
         pred = model(x)
         loss = loss_fn(pred, y)
         accelerator.backward(loss)
         print("loss", loss)
-        # print("x.grad", x.grad)
         optimizer.step()
-        optimizer: torch.optim.Optimizer
-        optimizer.zero_grad()
 
-    remove_hook_from_submodules(model)
+    for n, p in model.named_parameters():
+        print(n, p.grad)
 
-    # for k, v in model.state_dict().items():
-    #     print(k, v.cpu())
+        remove_hook_from_submodules(model)
+
+        # for k, v in model.state_dict().items():
+        #     print(k, v.cpu())

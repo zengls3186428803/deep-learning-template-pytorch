@@ -1,5 +1,6 @@
 import collections
 import copy
+import pickle
 from typing import List
 
 from tqdm import tqdm
@@ -77,13 +78,15 @@ class GPT2Tokenizer:
     def save_state_dict(self, save_directory="model_pretrained/gpt2"):
         state_dict = self.__dict__
         state_dict["vocab"] = self.vocab
+        with open(f"{save_directory}/tokenizer.pkl", "wb") as f:
+            pickle.dump(self.__dict__, f)
         with open(f"{save_directory}/vocab.json", "w") as f:
-            json.dump(self.__dict__, f)
+            json.dump(self.vocab, f)
 
     def load_state_dict(self, save_directory="model_pretrained/gpt2"):
-        with open(f"{save_directory}/vocab.json", "r") as f:
-            state_dict = json.load(f)
-            self.__dict__ = state_dict
+        with open(f"{save_directory}/tokenizer.pkl", "rb") as f:
+            state_dict = pickle.load(f)
+            self.__dict__.update(state_dict)
 
     def get_vocab_size(self):
         return len(self.vocab)

@@ -1,10 +1,9 @@
 import os
 import time
-
-import hydra
 import torch
+import hydra
 import wandb
-from torch.nn.utils.rnn import pad_sequence
+from omegaconf import DictConfig, OmegaConf
 from get_dataloader.douban import get_douban_dataloader
 from class_model.gpt2Tokenizer import GPT2Tokenizer
 from class_model.gpt2 import GPT2
@@ -13,50 +12,17 @@ from class_config.trainConfig import TrainConfig
 from class_config.algorithmConfig import AlgorithmConfig
 from class_config.dataConfig import DataConfig
 from class_config.wandbConfig import WandbConfig
+from class_config.modelConfig import GPT2Config
 from my_utils.seed_all import seed_everything
-from omegaconf import DictConfig, OmegaConf
+from my_utils.data_processer import get_collate_fn
 
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-
-
-class GPT2Config:
-    EMBED_DIM = 10
-    N_HEAD = 1
-    DROPOUT = 0.1
-    N_BLOCK_GPT = 1
-    BATCH_FIRST = True
-    BATCH_SIZE = 64
-    MAX_GEN_LEN = 128
-    MAX_POS = 5000
 
 
 def data_generator(dataloader):
     for batch in dataloader:
         for data in batch:
             yield data
-
-
-def transform_text_to_tensor(text: str, tokenizer: GPT2Tokenizer):
-    return torch.Tensor(
-        tokenizer.convert_token_to_id(
-            tokenizer.tokenize(text) + [tokenizer.eos_token]
-        )
-    )
-
-
-def get_collate_fn(tokenizer: GPT2Tokenizer):
-    def collate_fn(batch):
-        collated_batch = []
-        for sample in batch:
-            collated_batch.append(transform_text_to_tensor(sample.rstrip("\n"), tokenizer))
-        collated_batch = pad_sequence(
-            collated_batch,
-            padding_value=tokenizer.convert_token_to_id([tokenizer.pad_token])[0],
-            batch_first=True
-        )
-        return collated_batch.long()
-
-    return collate_fn
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -87,19 +53,20 @@ def main(cfg: DictConfig):
         data_config.test_batch_size
     )
     gpt2tokenizer = GPT2Tokenizer()
-    # gpt2tokenizer.build_vocab([text for text in data_generator(train_loader)])
-    # gpt2tokenizer.save_state_dict()
+    gpt2tokenizer.build_vocab([text for text in data_generator(train_loader)])
+    gpt2tokenizer.save_state_dict()
     gpt2tokenizer.load_state_dict()
-    print(gpt2tokenizer.get_vocab_size())
-    gpt2config = GPT2Config()
+    print(type([k for k, _ in gpt2tokenizer.inv_vocab.items()][0]))
+    print("vocab_size=", gpt2tokenizer.get_vocab_size())
+    gpt2config = GPT2Config(cfg)
     gpt = GPT2(
         vocab_size=gpt2tokenizer.get_vocab_size(),
-        embed_dim=gpt2config.EMBED_DIM,
-        num_head=gpt2config.N_HEAD,
-        num_block_gpt=gpt2config.N_BLOCK_GPT,
-        max_pos=gpt2config.MAX_POS,
-        batch_first=gpt2config.BATCH_FIRST,
-        dropout=gpt2config.DROPOUT
+        embed_dim=gpt2config.embed_dim,
+        num_head=gpt2config.n_head,
+        num_block_gpt=gpt2config.n_block_gpt,
+        max_pos=gpt2config.max_pos,
+        batch_first=gpt2config.batch_first,
+        dropout=gpt2config.dropout
     )
 
     trainer = GPTTrainer(
@@ -108,7 +75,7 @@ def main(cfg: DictConfig):
         config=train_config,
         algorithm_config=algorithm_config,
         data_config=data_config,
-        collate_fn=get_collate_fn(gpt2tokenizer),
+        collate_fn=get_collate_fn(gpt2tokenizer, 500),
         tokenizer=gpt2tokenizer
     )
     trainer.train()

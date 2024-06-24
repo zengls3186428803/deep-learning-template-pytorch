@@ -4,7 +4,7 @@ import torch
 def get_dispatch_model(model: torch.nn.Module, strategy="auto", device_map=None, max_memory=None, offload_dir=None,
                        state_dict=None):
     import accelerate
-    from accelerate.big_modeling import dispatch_model
+    from accelerate.big_modeling import dispatch_model, load_checkpoint_and_dispatch
     from accelerate.big_modeling import cpu_offload
     match strategy:
         case "only_cpu":
@@ -15,6 +15,7 @@ def get_dispatch_model(model: torch.nn.Module, strategy="auto", device_map=None,
                 max_memory=max_memory,
             )
             print("auto device map is ", device_map)
+            # model = load_checkpoint_and_dispatch(model)
             model = dispatch_model(
                 model,
                 device_map=device_map,

@@ -39,7 +39,6 @@ class Trainer:
         self.num_epochs = config.num_epochs
         self.snapshot_path = config.snapshot_path
         self.device = config.device
-        self.save_interval = config.save_interval
         if config.snapshot_path is not None and os.path.exists(path=config.snapshot_path):
             print("load from checkpoint(snapshot)")
             self.load_from_snapshot(config.snapshot_path)
@@ -60,6 +59,7 @@ class Trainer:
         snapshot["model_parameters"] = self.model.state_dict()
         snapshot["optimizer_state"] = self.optimizer.state_dict()
         snapshot["epoch"] = self.epoch
+        snapshot["step"] = self.step
         torch.save(snapshot, path)
 
     @wandb_loger(desc="")
@@ -130,7 +130,7 @@ class Trainer:
         p_bar = tqdm(total=self.num_epochs, desc="epoch")
         for epoch in range(self.start_epoch, self.config.num_epochs + 1):
             self.train_a_epoch()
-            if self.snapshot_path is not None and epoch % self.save_interval == 0:
+            if self.snapshot_path is not None and epoch % self.config.save_interval_epochs == 0:
                 self.save(self.snapshot_path)
             self.scheduler.step()
             p_bar.update(1)

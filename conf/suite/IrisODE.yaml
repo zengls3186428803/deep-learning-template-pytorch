@@ -2,7 +2,7 @@ defaults:
   - /model: general
   - /data: general
   - /algorithm: general
-  - /train: general
+  - /train: ode
   - /wandb: general
   - _self_
 

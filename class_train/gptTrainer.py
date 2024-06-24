@@ -8,6 +8,7 @@ from class_config.algorithmConfig import AlgorithmConfig
 from my_utils.decorator import wandb_loger
 from class_config.trainConfig import TrainConfig
 from class_config.dataConfig import DataConfig
+from class_model.gpt2Tokenizer import GPT2Tokenizer
 
 
 class GPTTrainer(Trainer):
@@ -30,14 +31,19 @@ class GPTTrainer(Trainer):
         )
         self.collate_fn = collate_fn
         self.tokenizer = tokenizer
+        self.loss_fn = algorithm_config.loss_fn(ignore_index=self.tokenizer.pad_id)
 
     @wandb_loger(desc="")
     def train_a_batch(self, x, y):
+        # print("x.shape=", x.shape)
         self.model.train()
         x = x.to(self.device).long()
         y = y.to(self.device).long()
+        # print("train_a_batch x.device", x.device)
         # ==============================================
         att_mask, pad_mask = self.get_masks(x)
+        att_mask = att_mask.to(self.device)
+        pad_mask = pad_mask.to(self.device)
         o = self.model(x, att_mask, pad_mask)
         o: torch.Tensor
         y: torch.Tensor
@@ -55,6 +61,7 @@ class GPTTrainer(Trainer):
             "step": self.step,
         }
         print(result)
+        print(self.text_generate(prompt="天空突然下雨"))
 
         if self.step % self.config.evaluate_interval_steps == 0:
             flag = f"evaluate_set per {self.config.evaluate_interval_steps} step : "
@@ -106,7 +113,6 @@ class GPTTrainer(Trainer):
         return result
 
     def get_masks(self, data: torch.Tensor):
-        from class_model.gpt2Tokenizer import GPT2Tokenizer
         self.tokenizer: GPT2Tokenizer
         seq_len = data.shape[1]
         attention_mask = (torch.ones(seq_len, seq_len) - torch.triu(torch.ones(seq_len, seq_len))).type(
@@ -131,6 +137,8 @@ class GPTTrainer(Trainer):
                 y = y.to(self.config.device)
                 # ==============================================
                 att_mask, pad_mask = self.get_masks(x)
+                att_mask = att_mask.to(self.device)
+                pad_mask = pad_mask.to(self.device)
                 o = self.model(x, att_mask, pad_mask)
                 o: torch.Tensor
                 y: torch.Tensor
@@ -152,3 +160,31 @@ class GPTTrainer(Trainer):
                 flag + "correct_total": correct_total,
                 flag + "all_total": all_total,
             }
+
+    def greedy_decode(self, max_gen_len: int, prompt: str):
+        self.tokenizer: GPT2Tokenizer
+        x = self.collate_fn([prompt])
+        x = x.to(self.config.device)
+        self.model.eval()
+        with torch.no_grad():
+            for i in range(max_gen_len):
+                att_mask, pad_mask = self.get_masks(x)
+                # ==============================================
+                att_mask, pad_mask = self.get_masks(x)
+                att_mask = att_mask.to(self.device)
+                pad_mask = pad_mask.to(self.device)
+                out = self.model(x, att_mask, pad_mask)
+                _, next_word = torch.max(out[:, -1, :], dim=1)
+                next_word = next_word.item()
+                x = torch.cat([x, torch.ones(1, 1).type_as(x).fill_(next_word)], dim=1)
+                if next_word == self.tokenizer.eos_id:
+                    break
+        return x[0]
+
+    def text_generate(self, prompt: str) -> str:
+        x = self.greedy_decode(max_gen_len=300, prompt=prompt)
+        x = x.tolist()
+        self.tokenizer: GPT2Tokenizer
+        token_list = self.tokenizer.convert_id_to_token(x)
+        text = "".join(token_list).replace(self.tokenizer.eos_token, "")
+        return text

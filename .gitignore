@@ -7,3 +7,4 @@ multirun/
 wandb/
 torchdiffeq/
 model_pretrained/
+.sync.ffs_db

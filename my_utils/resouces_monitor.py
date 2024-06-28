@@ -4,7 +4,8 @@ import psutil
 def show_mem():
     mem = psutil.virtual_memory()
     total = str(round(mem.total / 1024 / 1024))
-    # round方法进行四舍五入，然后转换成字符串 字节/1024得到kb 再/1024得到M
+    # The round method is used to round the number and
+    # then convert it into a string. Bytes/1024 is used to get kb and then /1024 is used to get M.
     used = str(round(mem.used / 1024 / 1024))
     use_per = str(round(mem.percent))
     free = str(round(mem.free / 1024 / 1024))

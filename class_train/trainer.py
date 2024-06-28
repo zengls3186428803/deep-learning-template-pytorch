@@ -50,6 +50,7 @@ class Trainer:
         self.model.load_state_dict(snapshot["model_parameters"])
         self.optimizer.load_state_dict(snapshot["optimizer_state"])
         self.epoch = snapshot["epoch"]
+        self.step = snapshot["step"]
         self.start_epoch = self.epoch + 1
 
     def save(self, path):

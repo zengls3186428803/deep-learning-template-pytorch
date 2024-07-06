@@ -1,5 +1,6 @@
 import psutil
 import torch
+import os
 
 
 def print_cpu_memory():
@@ -8,8 +9,12 @@ def print_cpu_memory():
     used = str(round(mem.used / 1024 ** 3))
     use_per = str(round(mem.percent))
     free = str(round(mem.free / 1024 ** 3))
-    print("CPU memory size of all:" + total + "GB")
-    print("CPU memory used:" + used + "GB(" + use_per + "%)")
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    memory_usage_in_bytes = memory_info.rss
+    # print("CPU memory size of all:" + total + "GB")
+    # print("CPU memory used:" + used + "GB(" + use_per + "%)")
+    print(f"CPU memory used:{memory_usage_in_bytes / 1024 ** 3}GB")
     print("CPU memory available :" + free + "GB")
 
 

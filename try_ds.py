@@ -177,8 +177,8 @@ def main(cfg):
     # with torch.autograd.graph.save_on_cpu():
     for i in range(5000):
         for x, y in dataloader:
-            x = x.to("cuda")
-            y = y.to("cuda")
+            # x = x.to("cuda")
+            # y = y.to("cuda")
             o = model(x)
             loss = loss_fn(o, y)
             print_gpu_memory()

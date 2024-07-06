@@ -1,75 +1,68 @@
+from torch.utils.data import DataLoader, Dataset
+import torch
+from torch.nn import MSELoss
+from torch.optim import SGD
 import hydra
-from omegaconf import DictConfig, OmegaConf
-from get_dataloaders import (get_fashion_mnist_loaders_5)
-from class_train.gcmTrainer import CovTrainer
-from class_config.algorithmConfig import AlgorithmConfig
-from class_config.dataConfig import DataConfig
-from class_config.wandbConfig import WandbConfig
-from class_config.modelConfig import ModelConfig
-from class_config.trainConfig import TrainConfig
-import wandb
-import time
-from my_utils.seed_all import seed_everything
-from class_model.imageClassificationODEModel import ImageClassificationModel
+import os
+from tools_for_quant_offload.forward_hook import OffloadHookContext
+from tools_for_quant_offload.graph_hook import OffloadSavedTensorHook
+from class_dataset.myDataset import MyDataset
+from hook.gradient_hook import get_record_gradient_hook
+from class_model.longLinear import LongLinearModel
+from my_utils.resouces_monitor import show_gpu_and_cpu_memory
+
+os.environ["HYDRA_FULL_ERROR"] = "1"
+record_dict = dict()
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
-def main(cfg: DictConfig):
-    # =========================translate DictConfig to class-Config=====================
-    print(OmegaConf.to_yaml(cfg))
-    train_config = TrainConfig(cfg)
-    algorithm_config = AlgorithmConfig(cfg)
-    data_config = DataConfig(cfg)
-    model_config = ModelConfig(cfg)
+def main(cfg):
+    print(cfg)
+    model = LongLinearModel(n_layers=400).cuda()
+    model.bfloat16()
+    for n, p in model.named_parameters():
+        p.register_hook(get_record_gradient_hook(model, record_dict=record_dict))
+    dataset = MyDataset()
+    dataloader = DataLoader(dataset=dataset, batch_size=3)
+    optimizer = SGD(model.parameters(), lr=1e-2)
 
-    # =======================seed =======================================================
-    seed_everything(train_config.seed)
-
-    # ===============prepare model and data===============================================
-    model = ImageClassificationModel(in_features=28 * 28, out_features=10, T=model_config.T)
-    train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_fashion_mnist_loaders_5(
-        data_aug=False,
-        batch_size=data_config.batch_size,
-        test_batch_size=data_config.test_batch_size
-    )
-    # model = AvilaClassificationModel(T=model_config.T)
-    # train_loader, train_eval_loader, test_loader, dataloader_one, dataloader_full = get_avila_loaders_5(
-    #     batch_size=data_config.batch_size,
-    #     test_batch_size=data_config.test_batch_size
+    loss_fn = MSELoss()
+    # loss_fn.register_forward_pre_hook(
+    #     OffloadHookContext.get_align_device_pre_forward_hook(device="cuda", with_kwargs=True),
+    #     with_kwargs=True,
     # )
+    with OffloadHookContext(
+            model=model,
+            device="cuda",
+            no_split_module_classes=["LlamaDecoderLayer", "GPT2TransformerBlock"],
+            num_block=2,
+            enable=True,
+            with_backward_hook=False,
+    ):
+        with torch.autograd.graph.saved_tensors_hooks(
+                pack_hook=OffloadSavedTensorHook.pack,
+                unpack_hook=OffloadSavedTensorHook.unpack,
+        ):
+            for i in range(20):
+                for x, y in dataloader:
+                    print("before forward=======================================================")
+                    show_gpu_and_cpu_memory()
+                    x = x.to("cuda")
+                    y = y.to("cuda")
+                    x: torch.Tensor
+                    y: torch.Tensor
+                    # x = x.bfloat16()
+                    # y = y.bfloat16()
+                    with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
+                        o = model(x)
+                        print(o.device)
+                        print("before backward======================================================")
+                        show_gpu_and_cpu_memory()
+                        loss = loss_fn(o, y)
+                        loss.backward()
+                    loss: torch.Tensor
+                    print(loss)
 
-    # =======================wandb config=======================================
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    wandb_config = WandbConfig(cfg)
-    wandb.init(
-        project=wandb_config.project,
-        group=wandb_config.group,
-        entity=wandb_config.entity,
-        name="T=" + str(model_config.T) + "," + timestamp,
-        config=dict(
-            num_epochs=train_config.num_epochs,
-            learning_rate=algorithm_config,
-            optimizer=algorithm_config.optimizer_name,
-            T=model_config.T,
-        ),
-        mode=wandb_config.mode,
-        reinit=True,
-    )
 
-    # train_config.device = "cpu"
-    # ================================trainer==========================================
-    trainer = CovTrainer(
-        model=model,
-        dataloaders=(train_loader, train_eval_loader, test_loader),
-        config=train_config,
-        algorithm_config=algorithm_config,
-        data_config=data_config,
-        dataloader_one=dataloader_one,
-        dataloader_full=dataloader_full
-    )
-    trainer.train()
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-    pass

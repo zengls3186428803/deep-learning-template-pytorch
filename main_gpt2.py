@@ -68,17 +68,58 @@ def main(cfg: DictConfig):
         batch_first=gpt2config.batch_first,
         dropout=gpt2config.dropout
     )
+    train_config.device = "cuda"
+    from tools_for_quant_offload.forward_hook import OffloadHookContext
+    from tools_for_quant_offload.graph_hook import OffloadSavedTensorHook
+    with OffloadHookContext(
+            model=gpt,
+            device="cuda",
+            no_split_module_classes=["GPT2TransformerBlock"],
+            enable=True,
+            with_backward_hook=False,
+            num_block=2,
+    ):
+        with torch.autograd.graph.saved_tensors_hooks(
+                pack_hook=OffloadSavedTensorHook.pack,
+                unpack_hook=OffloadSavedTensorHook.unpack,
+        ):
+            flag = False
+            for batch in train_loader:
+                batch = get_collate_fn(tokenizer=gpt2tokenizer, max_len=20)(batch)
+                # (batch_size, batch_seq_len)
+                x = batch[:, :-1]
+                y = batch[:, 1:].to("cuda")
+                seq_len = x.shape[1]
+                attention_mask = (torch.ones(seq_len, seq_len) - torch.triu(torch.ones(seq_len, seq_len))).type(
+                    torch.bool).transpose(0, 1)
+                padding_mask = (x == gpt2tokenizer.pad_id)
+                att_mask, pad_mask = attention_mask, padding_mask
+                att_mask = att_mask.to(train_config.device)
+                pad_mask = pad_mask.to(train_config.device)
+                o = gpt(x, att_mask, pad_mask)
+                o: torch.Tensor
+                y: torch.Tensor
+                loss_fn = torch.nn.CrossEntropyLoss()
+                loss = loss_fn(o.reshape(-1, o.shape[-1]), y.reshape(-1))
+                if not flag:
+                    from my_utils.cgraph import get_compute_graph
+                    get_compute_graph(gpt, input={"x": x, "tgt_mask": att_mask, "tgt_key_padding_mask": pad_mask}, )
+                    flag = True
+                # =============================================
+                loss.backward()
+                from tools_for_quant_offload.resource_monitor import show_gpu_and_cpu_memory
+                show_gpu_and_cpu_memory()
 
-    trainer = GPTTrainer(
-        model=gpt,
-        dataloaders=(train_loader, eval_loader, test_loader),
-        config=train_config,
-        algorithm_config=algorithm_config,
-        data_config=data_config,
-        collate_fn=get_collate_fn(gpt2tokenizer, 500),
-        tokenizer=gpt2tokenizer
-    )
-    trainer.train()
+            # trainer = GPTTrainer(
+            #     model=gpt,
+            #     dataloaders=(train_loader, eval_loader, test_loader),
+            #     config=train_config,
+            #     algorithm_config=algorithm_config,
+            #     data_config=data_config,
+            #     collate_fn=get_collate_fn(gpt2tokenizer, 500),
+            #     tokenizer=gpt2tokenizer
+            # )
+            # trainer.train()
 
 
 if __name__ == '__main__':

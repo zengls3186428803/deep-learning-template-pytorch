@@ -7,14 +7,14 @@ defaults:
   - _self_
 
 model:
-  embed_dim: 512
+  embed_dim: 100
   n_head: 1
   dropout: 0.5
-  n_block_gpt: 6
+  n_block_gpt: 10
   batch_first: true
-  batch_size: 32
+  batch_size: 8
   max_gen_len: 128
-  max_pos: 5000
+  max_pos: 2000
 
 data:
   batch_size: 32
@@ -27,7 +27,7 @@ algorithm:
 wandb:
   project: gpt2
   entity: superposed-tree
-  mode: offline
+  mode: disabled
   group: gpt2_group
 
 train:

@@ -114,6 +114,21 @@ class SensorDataset(Dataset):
         return self.x[self.key], self.y[self.key]
 
 
+class MyDataset(Dataset):
+    def __init__(self, num_sample=30, dim=1024):
+        super().__init__()
+        self.dim = dim
+        self.data = dict()
+        self.data["x"] = torch.randn(num_sample, dim)
+        self.data["y"] = torch.randn(num_sample, dim)
+
+    def __getitem__(self, item):
+        return self.data["x"][item], self.data["y"][item]
+
+    def __len__(self):
+        return len(self.data["y"])
+
+
 if __name__ == "__main__":
     print(AvilaDataset().__len__())
     print(BanknoteAuthentication().__len__())

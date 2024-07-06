@@ -33,10 +33,11 @@ class GPTTrainer(Trainer):
         self.tokenizer = tokenizer
         self.loss_fn = algorithm_config.loss_fn(ignore_index=self.tokenizer.pad_id)
 
-    @wandb_loger(desc="")
+    # @wandb_loger(desc="")
     def train_a_batch(self, x, y):
-        # print("x.shape=", x.shape)
+        print("=" * 20)
         self.model.train()
+        # print("x.shape=", x.shape)
         x = x.to(self.device).long()
         y = y.to(self.device).long()
         # print("train_a_batch x.device", x.device)
@@ -52,6 +53,8 @@ class GPTTrainer(Trainer):
         self.loss_list.append(loss.item())
         self.optimizer.zero_grad()
         loss.backward()
+        from tools_for_quant_offload.resource_monitor import show_gpu_and_cpu_memory
+        show_gpu_and_cpu_memory()
         self.optimizer.step()
         loss_val = loss.item()
         self.step += 1
@@ -60,7 +63,9 @@ class GPTTrainer(Trainer):
             "train_step_loss": loss_val,
             "step": self.step,
         }
+
         print(result)
+        return
         print(self.text_generate(prompt="天空突然下雨"))
 
         if self.step % self.config.evaluate_interval_steps == 0:

@@ -3,7 +3,7 @@ from class_dataset.douban import DouBan
 
 
 def get_douban_dataloader(batch_size: int, test_batch_size: int, ):
-    datapath = "data/chinese-chatbot-corpus-master/clean_chat_corpus/douban_single_turn.tsv"
+    datapath = "/home/zengls/PycharmProjects/deep-learning-template-pytorch/data/chinese-chatbot-corpus/clean_chat_corpus/douban_single_turn.tsv"
     train_dataset = DouBan(datapath=datapath, train=True)
     eval_dataset = DouBan(datapath=datapath, train=True)
     test_dataset = DouBan(datapath=datapath, train=False)

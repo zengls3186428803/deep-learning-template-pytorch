@@ -1,5 +1,4 @@
 import torch
-
 print("============================================================")
 print("cuda.is_available:", torch.cuda.is_available())
 print("cuda.device_count:", torch.cuda.device_count())
@@ -13,13 +12,3 @@ print("torch.cuda.max_memory_allocated", torch.cuda.max_memory_allocated() / (10
 current_backend = torch.backends.cuda.preferred_linalg_library()
 print(f"Current preferred linalg library: {current_backend}")
 print("============================================================")
-
-A = torch.randn(100, 100)
-B = torch.randn(100, 100)
-print(torch.sparse.mm(A, B).shape)
-print(torch.matmul(A, B).shape)
-grads = torch.randn(50, 50)
-lora_r = 5
-U, S, V = torch.svd_lowrank(grads.to("cuda").float(), q=min(4 * lora_r, min(grads.shape)),
-                            niter=4)
-print(U.shape, S.shape, V.shape)

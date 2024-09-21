@@ -1,0 +1,76 @@
+defaults:
+  - /model: general
+  - /data: general
+  - /algorithm: general
+  - /train: ode
+  - /wandb: general
+  - _self_
+
+data:
+  batch_size: 16
+  test_batch_size: 16
+
+algorithm:
+  learning_rate: 0.1
+
+wandb:
+  project: IrisODE
+  entity: superposed-tree
+  mode: online
+  group: ode_group
+
+train:
+  num_epochs: 600
+  #  snapshot_path: snapshot/snapshot.pth
+  save_interval: 5
+  evaluate_interval_steps: 5
+  evaluate_interval_epochs: 1
+  seed: 415
+  calculate_eigenvalue_at_step: 3500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#data:
+#  batch_size: 16
+#  test_batch_size: 16
+#
+#algorithm:
+#  learning_rate: 0.1
+#
+#
+#train:
+#  num_epochs: 600
+#  #  snapshot_path: snapshot/snapshot.pth
+#  save_interval: 20
+#  evaluate_interval_steps: 50
+#  evaluate_interval_epochs: 1
+#  seed: 415
+#  calculate_eigenvalue_at_step: 3500
+#
+#wandb:
+#  project: IrisODE
+#  entity: superposed-tree
+#  mode: online
+#  group: ode_group

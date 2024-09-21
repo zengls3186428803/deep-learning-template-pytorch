@@ -1,0 +1,2 @@
+srun --partition=phys_hq --job-name=zls_job0 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --gres=gpu:1 --mem-per-cpu=5000MB --pty bash
+srun --partition=phys_hq --job-name=zls_job1 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --gres=gpu:2 --mem-per-cpu=5000MB ./frpc -c frpc.toml

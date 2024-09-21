@@ -1,0 +1,12 @@
+defaults:
+  #  - suite/suite1@_here_
+  - suite/GPT2@_here_
+  - _self_
+
+hydra:
+  run:
+    dir: hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  mode: RUN
+  sweeper:
+    params:
+      ++model.T: 1,3,5,7,10,15,20,25

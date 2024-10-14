@@ -3,13 +3,25 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
-from decorator import timer
-from my_utils import seed_everything
 from accelerate import Accelerator
+import random
+import os
+import numpy as np
 
 # import torch.distributed as dist
 # dist.init_process_group(backend='nccl', world_size=2)
 accelerator = Accelerator()
+
+
+def seed_everything(seed: int):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+
 
 seed_everything(0)
 
@@ -78,7 +90,6 @@ model, train_dataloader, test_dataloader, optimizer = accelerator.prepare(
 )
 
 
-@timer()
 def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
     model.train()

@@ -5,8 +5,10 @@
 ```bash
 git clone https://github.com/zengls3186428803/deep-learning-template-pytorch.git
 cd deep-learning-template-pytorch
-git submodule update
+git submodule init my_pkg_py
+git submodule update my_pkg_py
 pip install -r requirements.txt
+pip install -e my_pkg_py
 ```
 
 ## Function calling convention

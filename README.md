@@ -1,11 +1,13 @@
 # Deep learning Pytorch template
 
-## package
+## Usage
 
-- Configuration file management: hydra
-- Distributed: torch.distributed, accelerate, deepspeed
-- Visualization of the experiment: wandb
-- Visusalization of the computing graph: torchviz
+```bash
+git clone https://github.com/zengls3186428803/deep-learning-template-pytorch.git
+cd deep-learning-template-pytorch
+git submodule update
+pip install -r requirements.txt
+```
 
 ## Function calling convention
 

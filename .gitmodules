@@ -1,0 +1,3 @@
+[submodule "my_pkg_py"]
+	path = my_pkg_py
+	url = https://github.com/zengls3186428803/my_pkg_py.git
